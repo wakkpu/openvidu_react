@@ -10,12 +10,14 @@ import UserVideoComponent from "./UserVideoComponent";
 const OPENVIDU_SERVER_URL = "https://i7a306.p.ssafy.io/openvidu/api";
 const OPENVIDU_SERVER_SECRET = "SYNERGY";
 
+const SPRINGBOOT_SERVER_URL = "https://i7a306.p.ssafy.io:8080";
+
 class App extends Component {
   constructor(props) {
     super(props);
 
     this.state = {
-      mySessionId: "SessionA",
+      mySessionId: "",
       myUserName: "Participant" + Math.floor(Math.random() * 100),
       session: undefined,
       mainStreamManager: undefined,
@@ -49,6 +51,16 @@ class App extends Component {
     //this.sendMessageByEnter = this.sendMessageByEnter.bind(this);
     this.handleChatMessageChange = this.handleChatMessageChange.bind(this);
     // this.getHeader = this.getHeader.bind(this);
+
+    // REST
+    // 1. client에서 springboot server로 방 생성을 위한 랜덤 sessionId 생성 요청
+    this.createRandomSessionId = this.createRandomSessionId.bind(this);
+
+    // 2. 랜덤으로 생성한 sessionId를 사용해 OpenVidu Server로 session 생성 요청
+
+    // 3. session 생성 후 SpringBoot Server에 session 정보 저장
+
+    // 4. OpenVidu Server에 Connection 연결 요청
   }
 
   // chatting
@@ -169,6 +181,16 @@ class App extends Component {
     }
   }
 
+  // SpringBoot Server로부터 무작위 세션 id 생성.
+  createRandomSessionId() {
+    axios.get(SPRINGBOOT_SERVER_URL + "/create").then((response) => {
+      // setState 호출 시 render도 호출? (https://velog.io/@lllen/React-%EC%9D%B4%EB%B2%A4%ED%8A%B8)
+      // this.setState({mySessionId : response})
+      console.log(response);
+      // this.state.mySessionId = response;
+    });
+  }
+
   joinSession() {
     // --- 1) Get an OpenVidu object ---
 
@@ -287,7 +309,6 @@ class App extends Component {
 
     if (mySession) {
       mySession.disconnect();
-      // mySession.close().then(() => console.log('Session closed'));
     }
 
     // Empty all properties...
@@ -534,10 +555,7 @@ class App extends Component {
       var data = {};
       axios
         .post(
-          OPENVIDU_SERVER_URL +
-            "/sessions/" +
-            sessionId +
-            "/connection",
+          OPENVIDU_SERVER_URL + "/sessions/" + sessionId + "/connection",
           data,
           {
             headers: {
