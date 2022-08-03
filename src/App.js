@@ -5,8 +5,10 @@ import "./App.css";
 import Messages from "./Messages";
 import UserVideoComponent from "./UserVideoComponent";
 
-const OPENVIDU_SERVER_URL = "https://" + window.location.hostname + ":4443";
-const OPENVIDU_SERVER_SECRET = "MY_SECRET";
+// const OPENVIDU_SERVER_URL = "https://" + window.location.hostname + ":4443";
+// const OPENVIDU_SERVER_SECRET = "MY_SECRET";
+const OPENVIDU_SERVER_URL = "https://i7a306.p.ssafy.io/openvidu/api";
+const OPENVIDU_SERVER_SECRET = "SYNERGY";
 
 class App extends Component {
   constructor(props) {
@@ -44,13 +46,23 @@ class App extends Component {
     this.messageContainer = createRef(null);
     this.sendMessageByClick = this.sendMessageByClick.bind(this);
     // 이거 에러 남 TypeError: Cannot read properties of undefined (reading 'bind')
-    // this.sendMessageByEnter = this.sendMessageByEnter.bind(this);
+    //this.sendMessageByEnter = this.sendMessageByEnter.bind(this);
     this.handleChatMessageChange = this.handleChatMessageChange.bind(this);
+    // this.getHeader = this.getHeader.bind(this);
   }
 
   // chatting
   // chatToggle() {
   //     this.setState({chaton: !this.state.chaton});
+  // }
+
+  // getHeader() {
+  //   axios.get(OPENVIDU_SERVER_URL + "/sessions", {
+  //     headers: {
+  //       Authorization: "Basic " + btoa("OPENVIDUAPP:" + OPENVIDU_SERVER_SECRET),
+  //       "Content-Type": "application/json",
+  //     },
+  //   });
   // }
 
   sendMessageByClick() {
@@ -428,10 +440,6 @@ class App extends Component {
                 </div>
               ))}
             </div>
-            <div className="chatbox__messages">
-              <Messages messages={messages} />
-              <div />
-            </div>
             <div className="chatbox__footer">
               <input
                 id="chat_message"
@@ -447,6 +455,10 @@ class App extends Component {
               >
                 Enter
               </button>
+            </div>
+            <div className="chatbox__messages">
+              <Messages messages={messages} />
+              <div />
             </div>
           </div>
         ) : null}
@@ -476,7 +488,7 @@ class App extends Component {
     return new Promise((resolve, reject) => {
       var data = JSON.stringify({ customSessionId: sessionId });
       axios
-        .post(OPENVIDU_SERVER_URL + "/openvidu/api/sessions", data, {
+        .post(OPENVIDU_SERVER_URL + "/sessions", data, {
           headers: {
             Authorization:
               "Basic " + btoa("OPENVIDUAPP:" + OPENVIDU_SERVER_SECRET),
@@ -522,7 +534,7 @@ class App extends Component {
       axios
         .post(
           OPENVIDU_SERVER_URL +
-            "/openvidu/api/sessions/" +
+            "/sessions/" +
             sessionId +
             "/connection",
           data,
