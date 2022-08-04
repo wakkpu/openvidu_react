@@ -10,7 +10,8 @@ import UserVideoComponent from "./UserVideoComponent";
 const OPENVIDU_SERVER_URL = "https://i7a306.p.ssafy.io/openvidu/api";
 const OPENVIDU_SERVER_SECRET = "SYNERGY";
 
-const SPRINGBOOT_SERVER_URL = "https://i7a306.p.ssafy.io:8080";
+// const SPRINGBOOT_SERVER_URL = "https://i7a306.p.ssafy.io:8080/api/channels";
+const SPRINGBOOT_SERVER_URL = "https://localhost:8080/api/channels";
 
 class App extends Component {
   constructor(props) {
@@ -18,11 +19,13 @@ class App extends Component {
 
     this.state = {
       mySessionId: "",
-      myUserName: "Participant" + Math.floor(Math.random() * 100),
+      myUserName: "",
       session: undefined,
       mainStreamManager: undefined,
       publisher: undefined,
       subscribers: [],
+      // user need to hold their own connection.id
+      myConnectionId: "",
 
       // audio, video
       audiostate: true,
@@ -53,14 +56,11 @@ class App extends Component {
     // this.getHeader = this.getHeader.bind(this);
 
     // REST
-    // 1. client에서 springboot server로 방 생성을 위한 랜덤 sessionId 생성 요청
+    // client에서 springboot server로 방 생성을 위한 랜덤 sessionId 생성 요청
     this.createRandomSessionId = this.createRandomSessionId.bind(this);
 
-    // 2. 랜덤으로 생성한 sessionId를 사용해 OpenVidu Server로 session 생성 요청
-
-    // 3. session 생성 후 SpringBoot Server에 session 정보 저장
-
-    // 4. OpenVidu Server에 Connection 연결 요청
+    // session 생성 후 SpringBoot Server에 session 정보 저장
+    this.recordParticipant = this.recordParticipant.bind(this);
   }
 
   // chatting
@@ -183,12 +183,39 @@ class App extends Component {
 
   // SpringBoot Server로부터 무작위 세션 id 생성.
   createRandomSessionId() {
-    axios.get(SPRINGBOOT_SERVER_URL + "/create").then((response) => {
-      // setState 호출 시 render도 호출? (https://velog.io/@lllen/React-%EC%9D%B4%EB%B2%A4%ED%8A%B8)
-      // this.setState({mySessionId : response})
-      console.log(response);
-      // this.state.mySessionId = response;
+    return new Promise((resolve) => {
+      axios.get(SPRINGBOOT_SERVER_URL + "/create", {
+        hedaers: {
+          'Content-Type': 'application/json'
+        }
+      }).then((response) => {
+        // setState 호출 시 render도 호출 (https://velog.io/@lllen/React-%EC%9D%B4%EB%B2%A4%ED%8A%B8)
+        console.log("created random sessionId");
+        // this.mySessionId = response.data;
+        
+        console.log(response);
+        this.state.mySessionId = response.data;
+        this.setState({mySessionId: response.data});
+        console.log("sessionId: "+this.state.mySessionId);
+        resolve();
+      });
+    })
+  }
+
+  recordParticipant() {
+    const requestBody = JSON.stringify({
+      'connectionId' : this.state.myConnectionId,
+      'userEmail' : "dummy email",
+      'nickName' : this.state.myUserName,
     });
+    console.log("put session id "+this.state.mySessionId);
+    axios.put(SPRINGBOOT_SERVER_URL + "/" + this.state.mySessionId, requestBody, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }).then((response) => {
+      console.log(response);
+    })
   }
 
   joinSession() {
@@ -316,8 +343,8 @@ class App extends Component {
     this.setState({
       session: undefined,
       subscribers: [],
-      mySessionId: "SessionA",
-      myUserName: "Participant" + Math.floor(Math.random() * 100),
+      mySessionId: "",
+      myUserName: "",
       mainStreamManager: undefined,
       publisher: undefined,
     });
@@ -377,10 +404,10 @@ class App extends Component {
               />
             </div>
             <div id="join-dialog" className="jumbotron vertical-center">
-              <h1> Join a video session </h1>
+              <h1> Creating a video session </h1>
               <form className="form-group" onSubmit={this.joinSession}>
                 <p>
-                  <label>Participant: </label>
+                  <label> NickName </label>
                   <input
                     className="form-control"
                     type="text"
@@ -390,17 +417,17 @@ class App extends Component {
                     required
                   />
                 </p>
-                <p>
-                  <label> Session: </label>
+                {/* <p>
+                  <label> Session </label>
                   <input
                     className="form-control"
                     type="text"
                     id="sessionId"
                     value={mySessionId}
                     onChange={this.handleChangeSessionId}
-                    required
+                    // required
                   />
-                </p>
+                </p> */}
                 <p className="text-center">
                   <input
                     className="btn btn-lg btn-success"
@@ -501,12 +528,15 @@ class App extends Component {
    */
 
   getToken() {
-    return this.createSession(this.state.mySessionId).then((sessionId) =>
-      this.createToken(sessionId)
+    return this.createRandomSessionId().then(
+      () => this.createSession(this.state.mySessionId).then((sessionId) =>
+        this.createToken(sessionId)
+      )
     );
   }
 
   createSession(sessionId) {
+    console.log("created session "+sessionId);
     return new Promise((resolve, reject) => {
       var data = JSON.stringify({ customSessionId: sessionId });
       axios
@@ -518,7 +548,7 @@ class App extends Component {
           },
         })
         .then((response) => {
-          console.log("CREATE SESION", response);
+          console.log("CREATE SESSION", response);
           resolve(response.data.id);
         })
         .catch((response) => {
@@ -561,13 +591,16 @@ class App extends Component {
             headers: {
               Authorization:
                 "Basic " + btoa("OPENVIDUAPP:" + OPENVIDU_SERVER_SECRET),
-              "Content-Type": "application/json",
+                "Content-Type": "application/json",
             },
           }
         )
         .then((response) => {
           console.log("TOKEN", response);
           resolve(response.data.token);
+          console.log("connection id : "+response.data.id);
+          this.state.myConnectionId = response.data.id;
+          this.recordParticipant();
         })
         .catch((error) => reject(error));
     });
