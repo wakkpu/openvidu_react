@@ -10,8 +10,8 @@ import UserVideoComponent from "./UserVideoComponent";
 const OPENVIDU_SERVER_URL = "https://i7a306.p.ssafy.io/openvidu/api";
 const OPENVIDU_SERVER_SECRET = "SYNERGY";
 
-// const SPRINGBOOT_SERVER_URL = "https://i7a306.p.ssafy.io:8080/api/channels";
-const SPRINGBOOT_SERVER_URL = "https://localhost:8080/api/channels";
+const SPRINGBOOT_SERVER_URL = "https://i7a306.p.ssafy.io:8080/api/channels";
+// const SPRINGBOOT_SERVER_URL = "https://localhost:8080/api/channels";
 
 class App extends Component {
   constructor(props) {
@@ -36,6 +36,8 @@ class App extends Component {
       // chatting
       messages: [],
       message: "",
+
+      joinLink: ""
     };
 
     this.joinSession = this.joinSession.bind(this);
@@ -47,13 +49,10 @@ class App extends Component {
     this.onbeforeunload = this.onbeforeunload.bind(this);
 
     // chatting
-    // this.chatToggle = this.chatToggle.bind(this);
     this.messageContainer = createRef(null);
     this.sendMessageByClick = this.sendMessageByClick.bind(this);
-    // 이거 에러 남 TypeError: Cannot read properties of undefined (reading 'bind')
-    //this.sendMessageByEnter = this.sendMessageByEnter.bind(this);
+    this.sendMessageByEnter = this.sendMessageByEnter.bind(this);
     this.handleChatMessageChange = this.handleChatMessageChange.bind(this);
-    // this.getHeader = this.getHeader.bind(this);
 
     // REST
     // client에서 springboot server로 방 생성을 위한 랜덤 sessionId 생성 요청
@@ -61,21 +60,13 @@ class App extends Component {
 
     // session 생성 후 SpringBoot Server에 session 정보 저장
     this.recordParticipant = this.recordParticipant.bind(this);
+
+    // 참가 링크 생성
+    this.generateJoinLink = this.generateJoinLink.bind(this);
+
+    this.reverseAudioState = this.reverseAudioState.bind(this);
+    this.reverseVideoState = this.reverseVideoState.bind(this);
   }
-
-  // chatting
-  // chatToggle() {
-  //     this.setState({chaton: !this.state.chaton});
-  // }
-
-  // getHeader() {
-  //   axios.get(OPENVIDU_SERVER_URL + "/sessions", {
-  //     headers: {
-  //       Authorization: "Basic " + btoa("OPENVIDUAPP:" + OPENVIDU_SERVER_SECRET),
-  //       "Content-Type": "application/json",
-  //     },
-  //   });
-  // }
 
   sendMessageByClick() {
     if (this.state.message !== "") {
@@ -103,7 +94,7 @@ class App extends Component {
     });
   }
 
-  sendmessageByEnter(e) {
+  sendMessageByEnter(e) {
     if (e.key === "Enter") {
       if (this.state.message !== "") {
         this.setState({
@@ -135,6 +126,12 @@ class App extends Component {
     this.setState({
       message: e.target.value,
     });
+  }
+
+  generateJoinLink() {
+    const str = "https://i7a306.p.ssafy.io/join?channel="+this.state.mySessionId;
+    this.state.joinLink = str;
+    this.setState({joinLink : str});
   }
   // chatting
 
@@ -179,6 +176,26 @@ class App extends Component {
         subscribers: subscribers,
       });
     }
+  }
+
+  reverseAudioState() {
+    this.state.publisher.publishAudio(
+      !this.state.audiostate
+    );
+
+    this.setState({
+      audiostate: !this.state.audiostate
+    });
+  }
+
+  reverseVideoState() {
+    this.state.publisher.publishVideo(
+      !this.state.videostate
+    );
+    
+    this.setState({
+      videostate: !this.state.videostate
+    });
   }
 
   // SpringBoot Server로부터 무작위 세션 id 생성.
@@ -454,6 +471,10 @@ class App extends Component {
               />
             </div>
 
+            <div>
+              <text>{this.state.joinLink}</text>
+            </div>
+
             {this.state.mainStreamManager !== undefined ? (
               <div id="main-video" className="col-md-6">
                 <UserVideoComponent
@@ -488,6 +509,36 @@ class App extends Component {
                   <UserVideoComponent streamManager={sub} />
                 </div>
               ))}
+            </div>
+            <div>
+              {this.state.audiostate ? (
+                <button 
+                  onClick={this.reverseAudioState}
+                >
+                  Audio Off
+                </button>
+              ) : (
+                <button
+                  onClick={this.reverseAudioState}
+                >
+                  Audio On
+                </button>
+              )}
+            </div>
+            <div>
+            {this.state.videostate ? (
+                <button 
+                  onClick={this.reverseVideoState}
+                >
+                  Video Off
+                </button>
+              ) : (
+                <button
+                  onClick={this.reverseVideoState}
+                >
+                  Video On
+                </button>
+              )}
             </div>
             <div className="chatbox__footer">
               <input
@@ -528,8 +579,8 @@ class App extends Component {
    */
 
   getToken() {
-    return this.createRandomSessionId().then(
-      () => this.createSession(this.state.mySessionId).then((sessionId) =>
+    return this.createRandomSessionId().then(() => 
+      this.createSession(this.state.mySessionId).then((sessionId) =>
         this.createToken(sessionId)
       )
     );
@@ -600,7 +651,9 @@ class App extends Component {
           resolve(response.data.token);
           console.log("connection id : "+response.data.id);
           this.state.myConnectionId = response.data.id;
+
           this.recordParticipant();
+          this.generateJoinLink();
         })
         .catch((error) => reject(error));
     });
